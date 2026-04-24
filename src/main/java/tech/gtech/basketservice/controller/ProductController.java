@@ -1,5 +1,7 @@
 package tech.gtech.basketservice.controller;
 
+import feign.FeignException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,8 +31,14 @@ public class ProductController {
 
     @GetMapping("/{id}")
     public ResponseEntity<PlatziProductResponse> getProductById(@PathVariable Long id){
-        PlatziProductResponse productById = productService.getProductById(id);
-        return ResponseEntity.ok(productById);
+        try {
+            PlatziProductResponse productById = productService.getProductById(id);
+            return ResponseEntity.ok(productById);
+        } catch (FeignException.BadRequest e) {
+            return ResponseEntity.notFound().build();
+        } catch (FeignException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
 }
