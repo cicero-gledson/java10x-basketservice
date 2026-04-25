@@ -4,6 +4,7 @@ import io.micrometer.observation.ObservationFilter;
 import org.springframework.stereotype.Service;
 import tech.gtech.basketservice.client.response.PlatziProductResponse;
 import tech.gtech.basketservice.controller.request.BasketRequest;
+import tech.gtech.basketservice.controller.request.PaymentRequest;
 import tech.gtech.basketservice.entity.Basket;
 import tech.gtech.basketservice.entity.Product;
 import tech.gtech.basketservice.entity.StatusBasket;
@@ -53,6 +54,10 @@ public class BasketService {
     }
 
 
+    public List<Basket> getBaskets (){
+        return basketRepository.findAll();
+    }
+
     public Basket getBasketById(String id) {
         return basketRepository.findById(id).orElseThrow(() -> new IllegalArgumentException());
     }
@@ -77,4 +82,15 @@ public class BasketService {
         basket.calculateTotalPrice();
         return basketRepository.save(basket);
     }
+
+    public Basket payBasket(String basketId, PaymentRequest paymentRequest) {
+        Basket basket = getBasketById(basketId);
+        basket.setPaymentMethod(paymentRequest.paymentMethod());
+        basket.setStatus(StatusBasket.SOLD);
+        return basketRepository.save(basket);
+    }
+    public void deleteBasket(String id){
+        basketRepository.delete(getBasketById(id));
+    }
+
 }
