@@ -8,6 +8,8 @@ import tech.gtech.basketservice.controller.request.PaymentRequest;
 import tech.gtech.basketservice.entity.Basket;
 import tech.gtech.basketservice.entity.Product;
 import tech.gtech.basketservice.entity.StatusBasket;
+import tech.gtech.basketservice.exceptions.BusinessException;
+import tech.gtech.basketservice.exceptions.DataNotFoundException;
 import tech.gtech.basketservice.repository.BasketRepository;
 
 import java.util.ArrayList;
@@ -23,15 +25,7 @@ public class BasketService {
         this.productService = productService;
     }
 
-    public Basket createBasket(BasketRequest basketRequest) {
-
-        basketRepository.findByClientAndStatus(basketRequest.clientId(), StatusBasket.OPEN)
-                .ifPresent(basket -> {
-                    throw new RuntimeException("The client already has an open basket");
-                });
-
-        List<Product> products = new ArrayList<>();
-
+    private void getProducts(BasketRequest basketRequest, List<Product> products) {
         basketRequest.products().forEach(productRequest -> {
             PlatziProductResponse platziProductResponse = productService.getProductById(productRequest.id());
             products.add(Product.builder()
@@ -42,6 +36,18 @@ public class BasketService {
                     .build());
 
         });
+    }
+
+    public Basket createBasket(BasketRequest basketRequest) {
+
+        basketRepository.findByClientAndStatus(basketRequest.clientId(), StatusBasket.OPEN)
+                .ifPresent(basket -> {
+                    throw new BusinessException("The client already has an open basket");
+                });
+
+        List<Product> products = new ArrayList<>();
+
+        getProducts(basketRequest, products);
 
         Basket basket = Basket.builder()
                 .client(basketRequest.clientId())
@@ -53,34 +59,25 @@ public class BasketService {
         return basketRepository.save(basket);
     }
 
+    public Basket updateBasket(String basketId, BasketRequest basketRequest) {
+        Basket basket = getBasketById(basketId);
+
+        List<Product> products = new ArrayList<>();
+
+        getProducts(basketRequest, products);
+
+        basket.setProducts(products);
+        basket.calculateTotalPrice();
+        return basketRepository.save(basket);
+    }
+
 
     public List<Basket> getBaskets (){
         return basketRepository.findAll();
     }
 
     public Basket getBasketById(String id) {
-        return basketRepository.findById(id).orElseThrow(() -> new IllegalArgumentException());
-    }
-
-    public Basket updateBasket(String basketId, BasketRequest basketRequest) {
-        Basket basket = getBasketById(basketId);
-
-        List<Product> products = new ArrayList<>();
-
-        basketRequest.products().forEach(productRequest -> {
-            PlatziProductResponse platziProductResponse = productService.getProductById(productRequest.id());
-            products.add(Product.builder()
-                    .id(platziProductResponse.id())
-                    .title(platziProductResponse.title())
-                    .price(platziProductResponse.price())
-                    .quantity(productRequest.quantity())
-                    .build());
-
-        });
-
-        basket.setProducts(products);
-        basket.calculateTotalPrice();
-        return basketRepository.save(basket);
+        return basketRepository.findById(id).orElseThrow(() -> new DataNotFoundException("Basket not found with id: " + id));
     }
 
     public Basket payBasket(String basketId, PaymentRequest paymentRequest) {
